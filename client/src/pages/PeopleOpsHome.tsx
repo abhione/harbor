@@ -9,6 +9,8 @@ import {
 } from "@/data/store";
 import { isLive, statusLabel, statusTone, typeLabel } from "@/lib/harbor";
 import { Link } from "wouter";
+import DemoCue from "@/components/DemoCue";
+import { activateEngagement, resolveFlag } from "@/data/store";
 
 export default function PeopleOpsHome() {
   const { state } = useHarbor();
@@ -20,6 +22,7 @@ export default function PeopleOpsHome() {
     }, 0);
   const flags = state.engagements.filter((e) => e.flagged);
   const openReq = state.requests.filter((r) => r.status !== "filled");
+  const onboarding = state.engagements.filter((e) => e.status === "onboarding" && !e.flagged);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -31,6 +34,8 @@ export default function PeopleOpsHome() {
           a shared inbox.
         </p>
       </header>
+
+      <DemoCue />
 
       <section className="grid gap-3 sm:grid-cols-4">
         <Stat label="Working now" value={String(live.length)} note="Across four departments" />
@@ -61,7 +66,7 @@ export default function PeopleOpsHome() {
                   </span>
                 </div>
                 <p className="mt-3 text-sm">{e.flagNote}</p>
-                {e.flagged === "classification" && (
+                {e.flagged === "classification" ? (
                   <button
                     type="button"
                     onClick={() => attestClassification(e.id)}
@@ -69,12 +74,53 @@ export default function PeopleOpsHome() {
                   >
                     Record human attest
                   </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => resolveFlag(e.id)}
+                    className="mt-3 rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground"
+                  >
+                    {e.flagged === "docs"
+                      ? "Mark COI collected"
+                      : e.flagged === "tenure"
+                        ? "Document end date"
+                        : "Approve rate exception"}
+                  </button>
                 )}
               </div>
             );
           })}
         </div>
       </section>
+
+      {onboarding.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-serif text-2xl">Ready to start</h2>
+          <div className="space-y-2">
+            {onboarding.map((e) => {
+              const p = personById(e.personId);
+              return (
+                <div
+                  key={e.id}
+                  className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3"
+                >
+                  <div>
+                    <p className="font-medium">{p?.name}</p>
+                    <p className="text-xs text-muted-foreground">{e.title}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => activateEngagement(e.id)}
+                    className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground"
+                  >
+                    Activate
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-3 font-serif text-2xl">Live engagements</h2>

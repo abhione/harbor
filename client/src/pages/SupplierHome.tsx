@@ -2,6 +2,7 @@ import { useHarbor } from "@/context/PersonaContext";
 import { formatMoney, personById, submitCandidate } from "@/data/store";
 import { statusLabel, statusTone } from "@/lib/harbor";
 import { useState } from "react";
+import DemoCue from "@/components/DemoCue";
 
 export default function SupplierHome() {
   const { state } = useHarbor();
@@ -24,6 +25,8 @@ export default function SupplierHome() {
           One login. Status you can see. Invoices that do not disappear.
         </p>
       </header>
+
+      <DemoCue />
 
       <section className="grid gap-4 lg:grid-cols-5">
         <div className="lg:col-span-3 space-y-3">

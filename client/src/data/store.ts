@@ -10,7 +10,7 @@ import type {
 } from "@/types";
 import { PAYDAY_FRIDAY } from "@/types";
 
-const KEY = "harbor-demo-v1";
+const KEY = "harbor-demo-v2";
 
 function load(): HarborState {
   try {
@@ -263,6 +263,262 @@ export function attestClassification(engagementId: string) {
             status: e.status === "onboarding" ? "onboarding" : e.status,
             classifyReasons: ["Human attest recorded. Counsel may still review."],
           }
+        : e
+    ),
+  });
+}
+
+export function resolveFlag(engagementId: string) {
+  const e = state.engagements.find((x) => x.id === engagementId);
+  if (!e) return;
+  commit({
+    ...state,
+    engagements: state.engagements.map((x) =>
+      x.id === engagementId
+        ? {
+            ...x,
+            flagged: undefined,
+            flagNote: undefined,
+            classifyReasons:
+              e.flagged === "tenure"
+                ? [...x.classifyReasons, "Tenure reviewed. End date documented."]
+                : e.flagged === "docs"
+                  ? [...x.classifyReasons, "COI collected."]
+                  : e.flagged === "rate"
+                    ? [...x.classifyReasons, "Rate exception approved inside cap."]
+                    : x.classifyReasons,
+          }
+        : x
+    ),
+    onboarding: state.onboarding.map((o) =>
+      o.engagementId === engagementId && !o.done ? { ...o, done: true } : o
+    ),
+  });
+}
+
+export function activateEngagement(engagementId: string) {
+  commit({
+    ...state,
+    onboarding: state.onboarding.map((o) =>
+      o.engagementId === engagementId ? { ...o, done: true } : o
+    ),
+    engagements: state.engagements.map((e) =>
+      e.id === engagementId
+        ? { ...e, status: "active", flagged: undefined, flagNote: undefined }
+        : e
+    ),
+  });
+}
+
+export function completeOnboardingItem(id: string) {
+  const item = state.onboarding.find((o) => o.id === id);
+  if (!item) return;
+  const onboarding = state.onboarding.map((o) => (o.id === id ? { ...o, done: true } : o));
+  const remaining = onboarding.filter((o) => o.engagementId === item.engagementId && !o.done);
+  commit({
+    ...state,
+    onboarding,
+    engagements: remaining.length
+      ? state.engagements
+      : state.engagements.map((e) =>
+          e.id === item.engagementId && e.status === "onboarding" ? { ...e, status: "active" } : e
+        ),
+  });
+}
+
+export function rehireKnown(requestId: string, personId: string) {
+  const req = state.requests.find((r) => r.id === requestId);
+  const person = state.people.find((p) => p.id === personId);
+  if (!req || !person) return;
+  const existing = state.engagements.find(
+    (e) => e.personId === personId && !["closed", "paid"].includes(e.status)
+  );
+  const engagementId = existing?.id ?? nid("e");
+  const engagement: Engagement = existing
+    ? { ...existing, status: "offered", title: req.title, rate: person.lastBillRate || req.capRate }
+    : {
+        id: engagementId,
+        personId,
+        managerId: req.managerId,
+        departmentId: req.departmentId,
+        type: req.suggestedType,
+        title: req.title,
+        location: req.location,
+        status: "offered",
+        startDate: "2026-10-20",
+        endDate: "2027-01-09",
+        rate: person.lastBillRate || req.capRate,
+        rateUnit: "hour",
+        weeklyHours: 40,
+        classification: req.suggestedType === "agency_temp" ? "w2_agency" : "ic_1099",
+        classifiedBy: "Maya Chen",
+        classifyReasons: ["Alumni rehire. Same work pattern as last assignment."],
+        tenureDays: 0,
+      };
+  const onboarding = existing
+    ? state.onboarding
+    : [
+        ...state.onboarding,
+        {
+          id: nid("o"),
+          personId,
+          engagementId,
+          label: "Accept offer",
+          done: false,
+        },
+        {
+          id: nid("o"),
+          personId,
+          engagementId,
+          label: "W-9 / direct deposit",
+          done: false,
+        },
+      ];
+  commit({
+    ...state,
+    engagements: existing
+      ? state.engagements.map((e) => (e.id === existing.id ? engagement : e))
+      : [engagement, ...state.engagements],
+    onboarding,
+    requests: state.requests.map((r) =>
+      r.id === requestId
+        ? { ...r, status: "filled", filledPersonId: personId, filledEngagementId: engagementId }
+        : r
+    ),
+  });
+}
+
+export function offerCandidate(candidateId: string) {
+  const c = state.candidates.find((x) => x.id === candidateId);
+  const req = c ? state.requests.find((r) => r.id === c.requestId) : undefined;
+  if (!c || !req) return;
+  const personId = c.personId ?? nid("p");
+  const people = c.personId
+    ? state.people
+    : [
+        {
+          id: personId,
+          name: c.name,
+          initials: c.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .slice(0, 2),
+          city: req.location,
+          skills: ["Submitted by Northwind"],
+          preferredType: req.suggestedType,
+          lastBillRate: c.billRate,
+          alumni: false,
+          email: `${c.name.toLowerCase().replace(/\s+/g, ".")}@northwind.example`,
+          phone: "512-555-0100",
+        },
+        ...state.people,
+      ];
+  const engagementId = nid("e");
+  const engagement: Engagement = {
+    id: engagementId,
+    personId,
+    managerId: req.managerId,
+    departmentId: req.departmentId,
+    supplierId: c.supplierId,
+    type: req.suggestedType,
+    title: req.title,
+    location: req.location,
+    status: "offered",
+    startDate: "2026-10-20",
+    endDate: "2026-12-31",
+    rate: c.billRate,
+    rateUnit: "hour",
+    weeklyHours: 36,
+    classification: req.suggestedType === "agency_temp" ? "w2_agency" : "ic_1099",
+    classifiedBy: "Maya Chen",
+    classifyReasons: ["Agency W-2 through Northwind. Supervised shift work."],
+    tenureDays: 0,
+  };
+  commit({
+    ...state,
+    people,
+    candidates: state.candidates.map((x) =>
+      x.id === candidateId ? { ...x, status: "offered", personId } : x
+    ),
+    engagements: [engagement, ...state.engagements],
+    onboarding: [
+      {
+        id: nid("o"),
+        personId,
+        engagementId,
+        label: "Accept offer",
+        done: false,
+      },
+      {
+        id: nid("o"),
+        personId,
+        engagementId,
+        label: "I-9 / badge",
+        done: false,
+      },
+      ...state.onboarding,
+    ],
+    requests: state.requests.map((r) =>
+      r.id === req.id
+        ? { ...r, status: "filled", filledPersonId: personId, filledEngagementId: engagementId }
+        : r
+    ),
+  });
+}
+
+export function acceptOffer(engagementId: string) {
+  const e = state.engagements.find((x) => x.id === engagementId);
+  if (!e) return;
+  commit({
+    ...state,
+    onboarding: state.onboarding.map((o) =>
+      o.engagementId === engagementId && o.label.toLowerCase().includes("accept")
+        ? { ...o, done: true }
+        : o
+    ),
+    engagements: state.engagements.map((x) =>
+      x.id === engagementId ? { ...x, status: "onboarding" } : x
+    ),
+  });
+}
+
+export function acceptMilestone(milestoneId: string) {
+  const m = state.milestones.find((x) => x.id === milestoneId);
+  if (!m) return;
+  const invoice = state.invoices.find(
+    (i) => i.engagementId === m.engagementId && i.status === "exception"
+  );
+  commit({
+    ...state,
+    milestones: state.milestones.map((x) =>
+      x.id === milestoneId ? { ...x, status: "accepted" } : x
+    ),
+    invoices: invoice
+      ? state.invoices.map((i) => (i.id === invoice.id ? { ...i, status: "scheduled" } : i))
+      : state.invoices,
+    payments: invoice
+      ? state.payments.map((p) =>
+          p.invoiceId === invoice.id ? { ...p, status: "scheduled" } : p
+        )
+      : state.payments,
+  });
+}
+
+export function releaseFridayBatch() {
+  const ready = state.invoices.filter((i) =>
+    ["ready", "scheduled"].includes(i.status)
+  );
+  const ids = new Set(ready.map((i) => i.id));
+  commit({
+    ...state,
+    invoices: state.invoices.map((i) => (ids.has(i.id) ? { ...i, status: "paid" } : i)),
+    payments: state.payments.map((p) =>
+      ids.has(p.invoiceId) ? { ...p, status: "paid", paidOn: PAYDAY_FRIDAY } : p
+    ),
+    engagements: state.engagements.map((e) =>
+      ready.some((i) => i.engagementId === e.id)
+        ? { ...e, status: e.status === "pending_pay" || e.status === "time_due" ? "paid" : e.status, payDate: PAYDAY_FRIDAY }
         : e
     ),
   });

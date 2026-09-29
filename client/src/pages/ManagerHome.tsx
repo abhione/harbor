@@ -1,6 +1,13 @@
 import RequestComposer from "@/components/RequestComposer";
 import { useHarbor } from "@/context/PersonaContext";
-import { approveTime, formatMoney, personById } from "@/data/store";
+import DemoCue from "@/components/DemoCue";
+import {
+  approveTime,
+  formatMoney,
+  offerCandidate,
+  personById,
+  shortlistCandidate,
+} from "@/data/store";
 import { statusLabel, statusTone } from "@/lib/harbor";
 import { Link } from "wouter";
 
@@ -9,6 +16,11 @@ export default function ManagerHome() {
   const mine = state.engagements.filter((e) => e.managerId === "u-priya");
   const pending = state.timeEntries.filter(
     (t) => t.status === "submitted" && mine.some((e) => e.id === t.engagementId)
+  );
+  const inbox = state.candidates.filter((c) =>
+    state.requests.some(
+      (r) => r.id === c.requestId && r.managerId === "u-priya" && ["submitted", "shortlisted"].includes(c.status)
+    )
   );
 
   return (
@@ -21,7 +33,52 @@ export default function ManagerHome() {
         </p>
       </header>
 
+      <DemoCue />
+
       <RequestComposer />
+
+      {inbox.length > 0 && (
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="font-serif text-xl">Candidates in</h2>
+          <p className="mb-3 text-xs text-muted-foreground">Northwind submitted. You still decide.</p>
+          <div className="space-y-2">
+            {inbox.map((c) => {
+              const req = state.requests.find((r) => r.id === c.requestId);
+              return (
+                <div
+                  key={c.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {req?.title} · {formatMoney(c.billRate)}/hr · {c.note}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {c.status === "submitted" && (
+                      <button
+                        type="button"
+                        onClick={() => shortlistCandidate(c.id)}
+                        className="rounded-full border border-border px-3 py-1 text-xs"
+                      >
+                        Shortlist
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => offerCandidate(c.id)}
+                      className="rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground"
+                    >
+                      Offer
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {pending.length > 0 && (
         <section className="rounded-2xl border border-amber/30 bg-[#FBF4E8] p-5">

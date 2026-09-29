@@ -1,16 +1,19 @@
 import { useHarbor } from "@/context/PersonaContext";
-import { formatMoney, submitTime } from "@/data/store";
+import { acceptOffer, completeOnboardingItem, formatMoney, submitTime } from "@/data/store";
 import { statusLabel, statusTone } from "@/lib/harbor";
 import { PAYDAY_FRIDAY } from "@/types";
 import { useState } from "react";
+import DemoCue from "@/components/DemoCue";
 
 export default function WorkerHome() {
   const { state } = useHarbor();
-  const engagement = state.engagements.find((e) => e.id === "e-sam-active");
+  const engagement =
+    state.engagements.find((e) => e.personId === "p-sam" && e.status === "offered") ??
+    state.engagements.find((e) => e.id === "e-sam-active");
   const time = state.timeEntries.find((t) => t.engagementId === "e-sam-active" && t.weekOf === "2026-10-12");
   const invoice = state.invoices.find((i) => i.engagementId === "e-sam-active");
   const payment = state.payments.find((p) => p.invoiceId === invoice?.id);
-  const checklist = state.onboarding.filter((o) => o.personId === "p-sam");
+  const checklist = state.onboarding.filter((o) => o.engagementId === engagement?.id);
   const [hours, setHours] = useState(time?.hours ?? 38);
 
   const payStatus = payment?.status ?? "scheduled";
@@ -23,6 +26,18 @@ export default function WorkerHome() {
         <h1 className="font-serif text-3xl tracking-tight">Week of Oct 12</h1>
         <p className="mt-1 text-sm text-muted-foreground">{engagement?.title}</p>
       </header>
+
+      <DemoCue />
+
+      {engagement?.status === "offered" && (
+        <button
+          type="button"
+          onClick={() => acceptOffer(engagement.id)}
+          className="w-full rounded-full bg-primary py-3 text-sm text-primary-foreground"
+        >
+          Accept assignment
+        </button>
+      )}
 
       <section className="rounded-3xl bg-primary px-5 py-6 text-primary-foreground">
         <p className="text-xs uppercase tracking-[0.16em] opacity-80">Promised pay date</p>
@@ -81,6 +96,15 @@ export default function WorkerHome() {
                 {item.done ? "✓" : ""}
               </span>
               {item.label}
+              {!item.done && (
+                <button
+                  type="button"
+                  onClick={() => completeOnboardingItem(item.id)}
+                  className="ml-auto text-xs text-primary"
+                >
+                  Done
+                </button>
+              )}
             </li>
           ))}
         </ul>

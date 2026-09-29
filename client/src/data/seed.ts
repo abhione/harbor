@@ -706,7 +706,7 @@ export const seed: HarborState = {
       ],
       rateBand: [95, 115],
       knownMatches: ["p-sam", "p-ravi"],
-      status: "approved",
+      status: "filled",
       supplierIds: ["s-northwind"],
       filledPersonId: "p-sam",
       filledEngagementId: "e-sam-active",

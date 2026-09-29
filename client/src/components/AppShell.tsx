@@ -39,8 +39,12 @@ const NAV: Record<PersonaId, { href: string; label: string; icon: typeof Users }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { persona, setPersona, meta } = useHarbor();
-  const [loc] = useLocation();
+  const [loc, setLoc] = useLocation();
   const worker = persona === "worker";
+  const switchTo = (id: PersonaId) => {
+    setPersona(id);
+    setLoc("/");
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -69,7 +73,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setPersona(id)}
+                  onClick={() => switchTo(id)}
                   className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-left text-sm transition-colors ${
                     on
                       ? "border-primary bg-primary text-primary-foreground"
