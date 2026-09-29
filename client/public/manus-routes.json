@@ -1,0 +1,12 @@
+{
+  "routes": [
+    { "path": "/", "title": "Harbor ledger" },
+    { "path": "/requests", "title": "Requests" },
+    { "path": "/requests/new", "title": "New request" },
+    { "path": "/people", "title": "People" },
+    { "path": "/engagements/:id", "title": "Engagement" },
+    { "path": "/approvals", "title": "Approvals" },
+    { "path": "/pay", "title": "Pay" },
+    { "path": "/suppliers", "title": "Suppliers" }
+  ]
+}
